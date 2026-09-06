@@ -23,6 +23,8 @@ class General(commands.Cog):
             "`/help` `/ping` `/server` `/user` `/avatar`\n"
             "`/balance` `/daily` `/work` `/pay` `/rich` `/profile`\n"
             "`/rank` `/leaderboard` `/coinflip` `/roll` `/eightball` `/choose`\n"
+            "`/quests` `/reputation` `/give-rep` `/rep-leaderboard`\n"
+            "`/title list` `/title set` `/event status`\n"
             "`/ticket` لفتح تذكرة و`/suggest send` لإرسال اقتراح.\n\n"
             "**أوامر الإدارة فقط**\n"
             "`/ticket setup` `/suggest setup` `/logs setup`\n"
@@ -35,6 +37,8 @@ class General(commands.Cog):
             "`/voice join` `/voice leave` للتحكم بالروم الصوتي والبقاء الدائم\n"
             "`/ban` `/kick` `/timeout` `/untimeout` `/warn` `/warnings`\n"
             "`/clearwarnings` `/clear` `/lock` `/unlock`\n\n"
+            "`/setlevel` `/addxp` `/removexp` لإدارة XP\n"
+            "`/event start` `/event end` لإدارة الأحداث العالمية\n\n"
             "الأوامر الإدارية محمية بصلاحيات Discord المناسبة."
         )
         await interaction.response.send_message(

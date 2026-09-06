@@ -46,7 +46,14 @@
 - `/suggest setup #channel` — إعداد قناة الاقتراحات.
 - `/suggest send content` — إرسال اقتراح.
 - `/balance` `/daily` `/work` `/pay` `/rich` — نظام العملات.
-- `/rank` `/leaderboard` — نظام المستويات والخبرة.
+- `/profile` `/rank` `/leaderboard` — نظام الملف الشخصي والمستويات والخبرة.
+- `/achievements` — عرض الإنجازات المكتملة والمقفلة.
+- `/quests` — عرض المهام اليومية والأسبوعية والتقدم الحالي.
+- `/reputation` `/give-rep` `/rep-leaderboard` — نظام Reputation.
+- `/title list` `/title set` — عرض الألقاب المفتوحة واختيار اللقب الحالي.
+- `/event status` — عرض الحدث العالمي النشط.
+- `/event start` `/event end` — إدارة الأحداث العالمية.
+- `/setlevel` `/addxp` `/removexp` — أوامر إدارة XP للمشرفين.
 - `/coinflip` `/roll` `/eightball` `/choose` — أوامر ترفيهية.
 - `/giveaway start` `/giveaway end` — السحوبات.
 - `/reactionrole setup` — إنشاء رتبة تفاعلية بالإيموجي.

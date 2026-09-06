@@ -19,6 +19,7 @@ from .cogs import (
     automod,
     custom,
     contact,
+    community,
     economy,
     fun,
     general,
@@ -86,6 +87,7 @@ class AlythiaBot(commands.Bot):
         await suggestions.setup(self, self.database)
         await economy.setup(self, self.database)
         await levels.setup(self, self.database)
+        await community.setup(self, self.database)
         await fun.setup(self, self.database)
         await giveaways.setup(self, self.database)
         await reaction_roles.setup(self, self.database)

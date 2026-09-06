@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +61,9 @@ class Database:
                 joined_at TEXT,
                 late_night_days INTEGER NOT NULL DEFAULT 0,
                 last_late_night_date TEXT,
+                reputation INTEGER NOT NULL DEFAULT 0,
+                current_title_id TEXT,
+                quests_completed INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (guild_id, user_id)
             );
             CREATE TABLE IF NOT EXISTS achievements (
@@ -80,6 +83,64 @@ class Database:
                 unlocked_at TEXT NOT NULL,
                 PRIMARY KEY (guild_id, user_id, achievement_id),
                 FOREIGN KEY (achievement_id) REFERENCES achievements(id)
+            );
+            CREATE TABLE IF NOT EXISTS reputation_votes (
+                guild_id INTEGER NOT NULL,
+                giver_id INTEGER NOT NULL,
+                receiver_id INTEGER NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS titles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                requirement_type TEXT NOT NULL,
+                requirement_value INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS user_titles (
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                title_id TEXT NOT NULL,
+                unlocked_at TEXT NOT NULL,
+                PRIMARY KEY (guild_id, user_id, title_id),
+                FOREIGN KEY (title_id) REFERENCES titles(id)
+            );
+            CREATE TABLE IF NOT EXISTS quests (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                emoji TEXT NOT NULL,
+                quest_type TEXT NOT NULL,
+                requirement_value INTEGER NOT NULL,
+                xp_reward INTEGER NOT NULL DEFAULT 0,
+                period TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS user_quests (
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                quest_id TEXT NOT NULL,
+                period_key TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+                completed INTEGER NOT NULL DEFAULT 0,
+                completed_at TEXT,
+                PRIMARY KEY (guild_id, user_id, quest_id, period_key),
+                FOREIGN KEY (quest_id) REFERENCES quests(id)
+            );
+            CREATE TABLE IF NOT EXISTS world_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                goal INTEGER NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+                xp_reward INTEGER NOT NULL DEFAULT 0,
+                started_at TEXT NOT NULL,
+                ends_at TEXT NOT NULL,
+                created_by INTEGER NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                completed_at TEXT
             );
             CREATE TABLE IF NOT EXISTS giveaways (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,6 +187,9 @@ class Database:
             "joined_at": "TEXT",
             "late_night_days": "INTEGER NOT NULL DEFAULT 0",
             "last_late_night_date": "TEXT",
+            "reputation": "INTEGER NOT NULL DEFAULT 0",
+            "current_title_id": "TEXT",
+            "quests_completed": "INTEGER NOT NULL DEFAULT 0",
         }
         for column, definition in level_migrations.items():
             if column not in level_columns:
@@ -136,6 +200,8 @@ class Database:
         # current level. New progression is total-XP based and starts at level 1.
         self.connection.execute("UPDATE levels SET level = 1 WHERE level < 1")
         self._seed_achievements()
+        self._seed_titles()
+        self._seed_quests()
         self.connection.commit()
 
     def _seed_achievements(self) -> None:
@@ -218,6 +284,66 @@ class Database:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             achievements,
+        )
+
+    def _seed_titles(self) -> None:
+        titles = (
+            ("newcomer", "Newcomer", "بدأ رحلته في Alythia.", "level", 1),
+            ("explorer", "Explorer", "وصل إلى المستوى 5.", "level", 5),
+            ("respected", "Respected", "حصل على 10 نقاط Reputation.", "reputation", 10),
+            ("quester", "Quester", "أكمل 5 مهام.", "quests_completed", 5),
+            ("veteran", "Veteran", "وصل إلى المستوى 25.", "level", 25),
+            ("legend", "Legend", "وصل إلى المستوى 50.", "level", 50),
+        )
+        self.connection.executemany(
+            """
+            INSERT OR IGNORE INTO titles
+                (id, name, description, requirement_type, requirement_value)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            titles,
+        )
+
+    def _seed_quests(self) -> None:
+        quests = (
+            (
+                "daily_first_five",
+                "Daily Momentum",
+                "أرسل 5 رسائل مؤهلة اليوم.",
+                "⚡",
+                "messages",
+                5,
+                50,
+                "daily",
+            ),
+            (
+                "daily_conversation",
+                "Daily Conversation",
+                "أرسل 15 رسالة مؤهلة اليوم.",
+                "💬",
+                "messages",
+                15,
+                100,
+                "daily",
+            ),
+            (
+                "weekly_social",
+                "Weekly Social",
+                "أرسل 50 رسالة مؤهلة هذا الأسبوع.",
+                "🌟",
+                "messages",
+                50,
+                300,
+                "weekly",
+            ),
+        )
+        self.connection.executemany(
+            """
+            INSERT OR IGNORE INTO quests
+                (id, name, description, emoji, quest_type, requirement_value, xp_reward, period)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            quests,
         )
 
     def _ensure_guild(self, guild_id: int) -> None:
@@ -580,6 +706,300 @@ class Database:
                 (guild_id, user_id),
             ).fetchone()[0]
         )
+
+    def reputation(self, guild_id: int, user_id: int) -> int:
+        return int(self.get_level(guild_id, user_id)["reputation"])
+
+    def give_reputation(
+        self, guild_id: int, giver_id: int, receiver_id: int, reason: str
+    ) -> int | None:
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(hours=24)
+        recent = self.connection.execute(
+            """
+            SELECT created_at FROM reputation_votes
+            WHERE guild_id = ? AND giver_id = ? AND receiver_id = ?
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (guild_id, giver_id, receiver_id),
+        ).fetchone()
+        if recent:
+            try:
+                if datetime.fromisoformat(str(recent["created_at"])) > cutoff:
+                    return None
+            except ValueError:
+                pass
+        self.get_level(guild_id, receiver_id)
+        self.connection.execute(
+            """
+            INSERT INTO reputation_votes
+                (guild_id, giver_id, receiver_id, reason, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (guild_id, giver_id, receiver_id, reason, now.isoformat()),
+        )
+        self.connection.execute(
+            """
+            UPDATE levels SET reputation = reputation + 1
+            WHERE guild_id = ? AND user_id = ?
+            """,
+            (guild_id, receiver_id),
+        )
+        self.connection.commit()
+        return self.reputation(guild_id, receiver_id)
+
+    def reputation_leaderboard(
+        self, guild_id: int, limit: int = 10, offset: int = 0
+    ) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                """
+                SELECT * FROM levels
+                WHERE guild_id = ? AND reputation > 0
+                ORDER BY reputation DESC, xp DESC, user_id ASC
+                LIMIT ? OFFSET ?
+                """,
+                (guild_id, limit, offset),
+            )
+        )
+
+    def list_titles(self) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                "SELECT * FROM titles ORDER BY requirement_value, id"
+            )
+        )
+
+    def user_titles(self, guild_id: int, user_id: int) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                """
+                SELECT t.*, ut.unlocked_at
+                FROM titles t
+                JOIN user_titles ut ON ut.title_id = t.id
+                WHERE ut.guild_id = ? AND ut.user_id = ?
+                ORDER BY ut.unlocked_at ASC
+                """,
+                (guild_id, user_id),
+            )
+        )
+
+    def unlock_title(self, guild_id: int, user_id: int, title_id: str) -> bool:
+        cursor = self.connection.execute(
+            """
+            INSERT OR IGNORE INTO user_titles
+                (guild_id, user_id, title_id, unlocked_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (guild_id, user_id, title_id, datetime.now(UTC).isoformat()),
+        )
+        self.connection.commit()
+        return cursor.rowcount > 0
+
+    def set_current_title(self, guild_id: int, user_id: int, title_id: str) -> bool:
+        owns_title = self.connection.execute(
+            """
+            SELECT 1 FROM user_titles
+            WHERE guild_id = ? AND user_id = ? AND title_id = ?
+            """,
+            (guild_id, user_id, title_id),
+        ).fetchone()
+        if not owns_title:
+            return False
+        self.get_level(guild_id, user_id)
+        self.connection.execute(
+            """
+            UPDATE levels SET current_title_id = ?
+            WHERE guild_id = ? AND user_id = ?
+            """,
+            (title_id, guild_id, user_id),
+        )
+        self.connection.commit()
+        return True
+
+    def current_title(self, guild_id: int, user_id: int) -> sqlite3.Row | None:
+        return self.connection.execute(
+            """
+            SELECT t.* FROM titles t
+            JOIN levels l ON l.current_title_id = t.id
+            WHERE l.guild_id = ? AND l.user_id = ?
+            """,
+            (guild_id, user_id),
+        ).fetchone()
+
+    def quest_rows(
+        self, guild_id: int, user_id: int, period_keys: dict[str, str]
+    ) -> list[sqlite3.Row]:
+        quests = list(
+            self.connection.execute(
+                "SELECT * FROM quests WHERE active = 1 ORDER BY period, requirement_value"
+            )
+        )
+        for quest in quests:
+            period_key = period_keys[str(quest["period"])]
+            self.connection.execute(
+                """
+                INSERT OR IGNORE INTO user_quests
+                    (guild_id, user_id, quest_id, period_key)
+                VALUES (?, ?, ?, ?)
+                """,
+                (guild_id, user_id, quest["id"], period_key),
+            )
+        self.connection.commit()
+        rows: list[sqlite3.Row] = []
+        for quest in quests:
+            period_key = period_keys[str(quest["period"])]
+            row = self.connection.execute(
+                """
+                SELECT q.*, uq.period_key, uq.progress, uq.completed, uq.completed_at
+                FROM quests q
+                JOIN user_quests uq ON uq.quest_id = q.id
+                WHERE uq.guild_id = ? AND uq.user_id = ?
+                  AND uq.quest_id = ? AND uq.period_key = ?
+                """,
+                (guild_id, user_id, quest["id"], period_key),
+            ).fetchone()
+            if row:
+                rows.append(row)
+        return rows
+
+    def advance_quests(
+        self, guild_id: int, user_id: int, period_keys: dict[str, str]
+    ) -> list[sqlite3.Row]:
+        self.get_level(guild_id, user_id)
+        rows = self.quest_rows(guild_id, user_id, period_keys)
+        completed_now: list[sqlite3.Row] = []
+        for quest in rows:
+            if quest["completed"] or quest["quest_type"] != "messages":
+                continue
+            new_progress = min(
+                int(quest["requirement_value"]), int(quest["progress"]) + 1
+            )
+            just_completed = new_progress >= int(quest["requirement_value"])
+            self.connection.execute(
+                """
+                UPDATE user_quests
+                SET progress = ?, completed = ?, completed_at = ?
+                WHERE guild_id = ? AND user_id = ? AND quest_id = ? AND period_key = ?
+                """,
+                (
+                    new_progress,
+                    int(just_completed),
+                    datetime.now(UTC).isoformat() if just_completed else None,
+                    guild_id,
+                    user_id,
+                    quest["id"],
+                    quest["period_key"],
+                ),
+            )
+            if just_completed:
+                self.connection.execute(
+                    """
+                    UPDATE levels SET quests_completed = quests_completed + 1
+                    WHERE guild_id = ? AND user_id = ?
+                    """,
+                    (guild_id, user_id),
+                )
+                updated = self.connection.execute(
+                    """
+                    SELECT q.*, uq.period_key, uq.progress, uq.completed, uq.completed_at
+                    FROM quests q
+                    JOIN user_quests uq ON uq.quest_id = q.id
+                    WHERE uq.guild_id = ? AND uq.user_id = ?
+                      AND uq.quest_id = ? AND uq.period_key = ?
+                    """,
+                    (guild_id, user_id, quest["id"], quest["period_key"]),
+                ).fetchone()
+                if updated:
+                    completed_now.append(updated)
+        self.connection.commit()
+        return completed_now
+
+    def active_world_event(self, guild_id: int) -> sqlite3.Row | None:
+        return self.connection.execute(
+            """
+            SELECT * FROM world_events
+            WHERE guild_id = ? AND active = 1
+            ORDER BY id DESC LIMIT 1
+            """,
+            (guild_id,),
+        ).fetchone()
+
+    def start_world_event(
+        self,
+        guild_id: int,
+        name: str,
+        description: str,
+        goal: int,
+        xp_reward: int,
+        ends_at: str,
+        created_by: int,
+    ) -> sqlite3.Row | None:
+        if self.active_world_event(guild_id):
+            return None
+        cursor = self.connection.execute(
+            """
+            INSERT INTO world_events
+                (guild_id, name, description, goal, xp_reward, started_at, ends_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                guild_id,
+                name,
+                description,
+                goal,
+                xp_reward,
+                datetime.now(UTC).isoformat(),
+                ends_at,
+                created_by,
+            ),
+        )
+        self.connection.commit()
+        return self.connection.execute(
+            "SELECT * FROM world_events WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
+
+    def advance_world_event(self, guild_id: int, amount: int = 1) -> sqlite3.Row | None:
+        event = self.active_world_event(guild_id)
+        if not event:
+            return None
+        if datetime.fromisoformat(str(event["ends_at"])) <= datetime.now(UTC):
+            self.connection.execute(
+                "UPDATE world_events SET active = 0 WHERE id = ?", (event["id"],)
+            )
+            self.connection.commit()
+            return None
+        new_progress = min(int(event["goal"]), int(event["progress"]) + amount)
+        completed = new_progress >= int(event["goal"])
+        self.connection.execute(
+            """
+            UPDATE world_events
+            SET progress = ?, active = ?, completed_at = ?
+            WHERE id = ?
+            """,
+            (
+                new_progress,
+                int(not completed),
+                datetime.now(UTC).isoformat() if completed else None,
+                event["id"],
+            ),
+        )
+        self.connection.commit()
+        return self.connection.execute(
+            "SELECT * FROM world_events WHERE id = ?", (event["id"],)
+        ).fetchone()
+
+    def end_world_event(self, guild_id: int) -> sqlite3.Row | None:
+        event = self.active_world_event(guild_id)
+        if not event:
+            return None
+        self.connection.execute(
+            "UPDATE world_events SET active = 0 WHERE id = ?", (event["id"],)
+        )
+        self.connection.commit()
+        return self.connection.execute(
+            "SELECT * FROM world_events WHERE id = ?", (event["id"],)
+        ).fetchone()
 
     def create_giveaway(
         self, guild_id: int, channel_id: int, prize: str, ends_at: str

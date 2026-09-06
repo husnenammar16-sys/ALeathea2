@@ -61,6 +61,7 @@ def profile_embed(database: Database, guild_id: int, target: discord.Member) -> 
     span = max(1, next_floor - current_floor)
     rank = database.level_rank(guild_id, target.id)
     achievements = database.achievement_count(guild_id, target.id)
+    current_title = database.current_title(guild_id, target.id)
     card = discord.Embed(
         title="👤 ALYTHIA PROFILE",
         description=f"**{member_name(target)}**\n`{target.name}`",
@@ -79,6 +80,12 @@ def profile_embed(database: Database, guild_id: int, target: discord.Member) -> 
     )
     card.add_field(name="🎖️ الإنجازات", value=f"**{achievements}** مكتملة", inline=True)
     card.add_field(name="💬 الرسائل", value=f"**{int(row['message_count']):,}**", inline=True)
+    card.add_field(name="🤝 Reputation", value=f"**{int(row['reputation']):,}**", inline=True)
+    card.add_field(
+        name="🎖️ اللقب",
+        value=f"「 {current_title['name']} 」" if current_title else "لا يوجد لقب محدد",
+        inline=False,
+    )
     if row["joined_at"]:
         joined = discord.utils.format_dt(
             datetime.fromisoformat(str(row["joined_at"])), style="D"
