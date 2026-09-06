@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: alythia
+    description: Alythia Discord bot status
 paths:
   /healthz:
     get:
@@ -24,6 +26,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /alythia/status:
+    get:
+      operationId: getAlythiaStatus
+      tags: [alythia]
+      summary: Get the live Alythia bot status
+      description: Returns the last status written by the running Discord bot.
+      responses:
+        "200":
+          description: Alythia status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlythiaStatus"
+        "503":
+          description: Bot status is not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUnavailable"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +54,73 @@ components:
           type: string
       required:
         - status
+    AlythiaStatus:
+      type: object
+      required: [botOnline, botName, commandCount, updatedAt, guilds]
+      properties:
+        botOnline:
+          type: boolean
+        botName:
+          type: string
+        commandCount:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+        guilds:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlythiaGuildStatus"
+    AlythiaGuildStatus:
+      type: object
+      required: [id, name, memberCount, voiceConnected, voiceChannel, settings, stats]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        memberCount:
+          type: integer
+        voiceConnected:
+          type: boolean
+        voiceChannel:
+          type: ["string", "null"]
+        settings:
+          $ref: "#/components/schemas/AlythiaSettings"
+        stats:
+          $ref: "#/components/schemas/AlythiaStats"
+    AlythiaSettings:
+      type: object
+      required: [welcomeEnabled, logsEnabled, automodEnabled, autoroleConfigured, ticketsConfigured, suggestionsConfigured]
+      properties:
+        welcomeEnabled:
+          type: boolean
+        logsEnabled:
+          type: boolean
+        automodEnabled:
+          type: boolean
+        autoroleConfigured:
+          type: boolean
+        ticketsConfigured:
+          type: boolean
+        suggestionsConfigured:
+          type: boolean
+    AlythiaStats:
+      type: object
+      required: [warningCount, pendingSuggestionCount, economyUserCount, levelUserCount]
+      properties:
+        warningCount:
+          type: integer
+        pendingSuggestionCount:
+          type: integer
+        economyUserCount:
+          type: integer
+        levelUserCount:
+          type: integer
+    StatusUnavailable:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
 

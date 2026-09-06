@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Alythia Dashboard"
+description = "An Arabic admin dashboard for the Alythia Discord bot, showing bot health, voice presence, moderation systems, economy, and server configuration in one focused control center."
+version = "1.0.0"
+id = "artifacts/alythia-dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24351
+
+[services.development]
+run = "pnpm --filter @workspace/alythia-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/alythia-dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/alythia-dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24351"
+BASE_PATH = "/"

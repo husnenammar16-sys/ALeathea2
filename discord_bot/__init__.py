@@ -1,0 +1,1 @@
+"""Alythia Discord community bot."""

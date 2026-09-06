@@ -1,0 +1,3 @@
+- [Discord privileged intents](discord-intents.md) — enable intents on the exact application that issued the bot token.
+- [Discord guild command sync](discord-guild-sync.md) — copy global commands into a guild before syncing, or zero commands will publish.
+- [Discord voice support](discord-voice-support.md) — PyNaCl is required for voice-channel connections.
