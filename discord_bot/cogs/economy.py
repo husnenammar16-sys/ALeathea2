@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from ..database import Database
 from ..utils import embed, member_name
+from .levels import profile_embed
 
 
 def remaining_time(value: str | None, cooldown: timedelta) -> str | None:
@@ -98,11 +99,7 @@ class Economy(commands.Cog):
     async def profile(self, interaction: discord.Interaction, member: discord.Member | None = None) -> None:
         target = member or interaction.user
         money = self.database.get_economy(interaction.guild_id, target.id)
-        level = self.database.get_level(interaction.guild_id, target.id)
-        card = embed(f"ملف {member_name(target)}", "إحصاءات العضو في المجتمع")
-        card.set_thumbnail(url=target.display_avatar.url)
-        card.add_field(name="المستوى", value=str(level["level"]), inline=True)
-        card.add_field(name="الخبرة", value=str(level["xp"]), inline=True)
+        card = profile_embed(self.database, interaction.guild_id, target)
         card.add_field(name="الرصيد", value=f"{money['balance']:,}", inline=True)
         await interaction.response.send_message(embed=card)
 

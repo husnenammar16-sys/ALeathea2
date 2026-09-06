@@ -47,6 +47,47 @@ def clean_message(content: str) -> str:
     return re.sub(r"\s+", " ", content.casefold()).strip()
 
 
+def profile_embed(database: Database, guild_id: int, target: discord.Member) -> discord.Embed:
+    row = database.get_level(
+        guild_id,
+        target.id,
+        target.joined_at.isoformat() if target.joined_at else None,
+    )
+    level = int(row["level"])
+    total_xp = int(row["xp"])
+    current_floor = database.xp_for_level(level)
+    next_floor = database.xp_for_level(level + 1)
+    progress = max(0, total_xp - current_floor)
+    span = max(1, next_floor - current_floor)
+    rank = database.level_rank(guild_id, target.id)
+    achievements = database.achievement_count(guild_id, target.id)
+    card = discord.Embed(
+        title="👤 ALYTHIA PROFILE",
+        description=f"**{member_name(target)}**\n`{target.name}`",
+        colour=COLOUR_PRIMARY,
+    )
+    card.set_thumbnail(url=target.display_avatar.url)
+    card.add_field(name="🏆 المستوى", value=f"**Level {level}**", inline=True)
+    card.add_field(name="📊 الترتيب", value=f"**#{rank}** في السيرفر", inline=True)
+    card.add_field(
+        name="✨ XP",
+        value=(
+            f"{progress_bar(progress, span)}\n"
+            f"**{total_xp:,} / {next_floor:,}**"
+        ),
+        inline=False,
+    )
+    card.add_field(name="🎖️ الإنجازات", value=f"**{achievements}** مكتملة", inline=True)
+    card.add_field(name="💬 الرسائل", value=f"**{int(row['message_count']):,}**", inline=True)
+    if row["joined_at"]:
+        joined = discord.utils.format_dt(
+            datetime.fromisoformat(str(row["joined_at"])), style="D"
+        )
+        card.add_field(name="📅 انضم للسيرفر", value=joined, inline=True)
+    card.set_footer(text="Alythia • ملف العضو")
+    return card
+
+
 class PageView(discord.ui.View):
     def __init__(self, requester_id: int, pages: Sequence[discord.Embed]) -> None:
         super().__init__(timeout=180)
@@ -142,60 +183,7 @@ class Levels(commands.Cog):
     def _profile_embed(
         self, guild_id: int, target: discord.Member
     ) -> discord.Embed:
-        row = self.database.get_level(
-            guild_id,
-            target.id,
-            target.joined_at.isoformat() if target.joined_at else None,
-        )
-        level = int(row["level"])
-        total_xp = int(row["xp"])
-        current_floor = self.database.xp_for_level(level)
-        next_floor = self.database.xp_for_level(level + 1)
-        progress = max(0, total_xp - current_floor)
-        span = max(1, next_floor - current_floor)
-        rank = self.database.level_rank(guild_id, target.id)
-        achievements = self.database.achievement_count(guild_id, target.id)
-        card = discord.Embed(
-            title="👤 ALYTHIA PROFILE",
-            description=f"**{member_name(target)}**\n`{target.name}`",
-            colour=COLOUR_PRIMARY,
-        )
-        card.set_thumbnail(url=target.display_avatar.url)
-        card.add_field(
-            name="🏆 المستوى",
-            value=f"**Level {level}**",
-            inline=True,
-        )
-        card.add_field(
-            name="📊 الترتيب",
-            value=f"**#{rank}** في السيرفر",
-            inline=True,
-        )
-        card.add_field(
-            name="✨ XP",
-            value=(
-                f"{progress_bar(progress, span)}\n"
-                f"**{total_xp:,} / {next_floor:,}**"
-            ),
-            inline=False,
-        )
-        card.add_field(
-            name="🎖️ الإنجازات",
-            value=f"**{achievements}** مكتملة",
-            inline=True,
-        )
-        card.add_field(
-            name="💬 الرسائل",
-            value=f"**{int(row['message_count']):,}**",
-            inline=True,
-        )
-        if row["joined_at"]:
-            joined = discord.utils.format_dt(
-                datetime.fromisoformat(str(row["joined_at"])), style="D"
-            )
-            card.add_field(name="📅 انضم للسيرفر", value=joined, inline=True)
-        card.set_footer(text="Alythia • ملف العضو")
-        return card
+        return profile_embed(self.database, guild_id, target)
 
     async def _send_profile(
         self,
@@ -212,13 +200,6 @@ class Levels(commands.Cog):
         await interaction.response.send_message(
             embed=self._profile_embed(guild_id, target)
         )
-
-    @app_commands.command(name="profile", description="عرض بروفايلك أو بروفايل عضو")
-    @app_commands.describe(member="عضو اختياري")
-    async def profile(
-        self, interaction: discord.Interaction, member: discord.Member | None = None
-    ) -> None:
-        await self._send_profile(interaction, member)
 
     @app_commands.command(name="rank", description="عرض مستواك أو مستوى عضو")
     @app_commands.describe(member="عضو اختياري")
