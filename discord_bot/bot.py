@@ -21,6 +21,7 @@ from .cogs import (
     contact,
     community,
     economy,
+    embeds,
     fun,
     general,
     giveaways,
@@ -87,6 +88,7 @@ class AlythiaBot(commands.Bot):
         await tickets.setup(self, self.database)
         await suggestions.setup(self, self.database)
         await economy.setup(self, self.database)
+        await embeds.setup(self, self.database)
         await levels.setup(self, self.database)
         await line.setup(self, self.database)
         await community.setup(self, self.database)

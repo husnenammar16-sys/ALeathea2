@@ -25,6 +25,7 @@ class PrefixCommands(commands.Cog):
                 "`!help` `!ping` `!server` `!user` `!avatar`\n"
                 "`!balance` `!daily` `!work` `!pay` `!rich` `!profile`\n"
                 "`!rank` `!leaderboard`\n"
+                "`!embed الرسالة` لإرسال رسالة على شكل Embed (للإدارة)\n"
                 "`!coinflip` `!roll` `!8ball` `!choose`\n"
                 "\n**للإدارة فقط**\n"
                 "`!warn` `!warnings` `!clearwarnings`\n"
