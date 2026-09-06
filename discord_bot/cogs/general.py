@@ -33,7 +33,7 @@ class General(commands.Cog):
             "`/automod setup` `/automod disable`\n"
             "`/giveaway start` `/giveaway end`\n"
             "`/custom add` `/custom remove` `/custom list`\n"
-            "`/embed message` لإرسال رسالة على شكل Embed\n"
+            "`/embed title message` لإرسال Embed بعنوان ونص\n"
             "`/call` لإرسال نداء خاص إلى عضو\n"
             "`/voice join` `/voice leave` للتحكم بالروم الصوتي والبقاء الدائم\n"
             "`/ban` `/kick` `/timeout` `/untimeout` `/warn` `/warnings`\n"

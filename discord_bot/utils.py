@@ -10,9 +10,7 @@ def embed(
     description: str = "",
     colour: int = COLOUR_PRIMARY,
 ) -> discord.Embed:
-    result = discord.Embed(title=title, description=description, colour=colour)
-    result.set_footer(text="Alythia • إدارة مجتمعك بسهولة")
-    return result
+    return discord.Embed(title=title, description=description, colour=colour)
 
 
 def success(title: str, description: str) -> discord.Embed:
