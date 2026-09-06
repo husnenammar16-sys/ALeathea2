@@ -42,6 +42,8 @@
 - `/welcome setup #channel` و `/welcome disable` — إعداد الترحيب.
 - `/autorole setup @role` و `/autorole disable` — إعداد الرتبة التلقائية.
 - `/logs setup #channel` — تحديد قناة اللوقز.
+- `/setup line` — تحديد صورة أمر `!خط`، للإدارة فقط.
+- `/un setup line` — إزالة صورة أمر `!خط`، للإدارة فقط.
 - `/ticket setup [category]` — نشر لوحة فتح التذاكر.
 - `/suggest setup #channel` — إعداد قناة الاقتراحات.
 - `/suggest send content` — إرسال اقتراح.
@@ -83,6 +85,7 @@
 !roll 20
 !clear 10
 !call @member تفضل راجع الإدارة
+!خط
 !join
 !leave
 ```

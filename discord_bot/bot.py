@@ -25,6 +25,7 @@ from .cogs import (
     general,
     giveaways,
     levels,
+    line,
     logs,
     moderation,
     reaction_roles,
@@ -87,6 +88,7 @@ class AlythiaBot(commands.Bot):
         await suggestions.setup(self, self.database)
         await economy.setup(self, self.database)
         await levels.setup(self, self.database)
+        await line.setup(self, self.database)
         await community.setup(self, self.database)
         await fun.setup(self, self.database)
         await giveaways.setup(self, self.database)

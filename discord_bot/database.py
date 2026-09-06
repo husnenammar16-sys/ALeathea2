@@ -169,6 +169,11 @@ class Database:
                 response TEXT NOT NULL,
                 PRIMARY KEY (guild_id, name)
             );
+            CREATE TABLE IF NOT EXISTS line_settings (
+                guild_id INTEGER PRIMARY KEY,
+                image_path TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         columns = {
@@ -1094,3 +1099,29 @@ class Database:
                 (guild_id,),
             )
         )
+
+    def line_image(self, guild_id: int) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM line_settings WHERE guild_id = ?",
+            (guild_id,),
+        ).fetchone()
+
+    def set_line_image(self, guild_id: int, image_path: str) -> None:
+        self.connection.execute(
+            """
+            INSERT OR REPLACE INTO line_settings (guild_id, image_path, updated_at)
+            VALUES (?, ?, ?)
+            """,
+            (guild_id, image_path, datetime.now(UTC).isoformat()),
+        )
+        self.connection.commit()
+
+    def delete_line_image(self, guild_id: int) -> sqlite3.Row | None:
+        row = self.line_image(guild_id)
+        if row:
+            self.connection.execute(
+                "DELETE FROM line_settings WHERE guild_id = ?",
+                (guild_id,),
+            )
+            self.connection.commit()
+        return row
